@@ -1,0 +1,105 @@
+<project name="Lab3Web" default="deploy" basedir=".">
+    <!-- Подключаем файл с параметрами -->
+    <property file="build.properties"/>
+
+    <!-- Определяем пути -->
+    <property name="src.java.dir" value="${src.java.dir}"/>
+    <property name="src.resources.dir" value="${src.resources.dir}"/>
+    <property name="src.webapp.dir" value="${src.webapp.dir}"/>
+    <property name="target.dir" value="${target.dir}"/>
+    <property name="classes.dir" value="${classes.dir}"/>
+    <property name="lib.dir" value="${lib.dir}"/>
+    <property name="war.name" value="${war.name}"/>
+
+    <!-- Цель для очистки -->
+    <target name="clean">
+        <delete dir="${target.dir}"/>
+    </target>
+
+    <!-- Цель для разрешения зависимостей -->
+    <target name="resolve-dependencies">
+        <mkdir dir="${lib.dir}"/>
+        <copy todir="${lib.dir}">
+            <fileset dir="${user.home}/.m2/repository">
+                <include name="**/*.jar"/>
+            </fileset>
+        </copy>
+    </target>
+
+    <!-- Цель для компиляции -->
+    <target name="compile" depends="clean,resolve-dependencies">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="${src.java.dir}" destdir="${classes.dir}">
+            <classpath>
+                <fileset dir="${lib.dir}">
+                    <include name="**/*.jar"/>
+                </fileset>
+            </classpath>
+        </javac>
+        <copy todir="${classes.dir}">
+            <fileset dir="${src.resources.dir}"/>
+        </copy>
+    </target>
+
+    <!-- Цель для упаковки в WAR -->
+    <target name="war" depends="compile">
+        <mkdir dir="${target.dir}/${war.name}"/>
+        <mkdir dir="${target.dir}/${war.name}/WEB-INF"/>
+        <copy todir="${target.dir}/${war.name}/WEB-INF">
+            <fileset dir="${src.webapp.dir}/WEB-INF"/>
+        </copy>
+        <copy todir="${target.dir}/${war.name}">
+            <fileset dir="${src.webapp.dir}">
+                <exclude name="WEB-INF/**"/>
+            </fileset>
+        </copy>
+        <copy todir="${target.dir}/${war.name}/WEB-INF/classes">
+            <fileset dir="${classes.dir}"/>
+        </copy>
+        <war destfile="${target.dir}/${war.name}.war" basedir="${target.dir}/${war.name}">
+            <lib dir="${lib.dir}"/>
+        </war>
+    </target>
+
+    <!-- Цель для сборки -->
+    <target name="build" depends="war"/>
+
+    <!-- Цель для тестирования -->
+    <target name="test" depends="build">
+        <junit printsummary="yes" haltonfailure="yes">
+            <classpath>
+                <path path="${classes.dir}"/>
+                <fileset dir="${lib.dir}">
+                    <include name="**/*.jar"/>
+                </fileset>
+            </classpath>
+            <formatter type="plain"/>
+            <batchtest fork="true">
+                <fileset dir="${src.java.dir}">
+                    <include name="**/*Test.java"/>
+                </fileset>
+            </batchtest>
+        </junit>
+    </target>
+
+    <!-- Цель для развертывания на Wildfly -->
+    <target name="deploy" depends="war">
+        <copy file="${target.dir}/${war.name}.war" todir="${wildfly.deploy.dir}"/>
+    </target>
+
+    <!-- Цель для коммита изменений в репозиторий Git -->
+    <target name="diff">
+        <exec executable="git">
+            <arg value="status"/>
+        </exec>
+        <exec executable="git">
+            <arg value="add"/>
+            <arg value="."/>
+        </exec>
+        <exec executable="git">
+            <arg value="commit"/>
+            <arg value="-m"/>
+            <arg value="Auto commit changes"/>
+        </exec>
+    </target>
+</project>
